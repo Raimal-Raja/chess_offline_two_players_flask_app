@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chess Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 2.5em;
+        }
+
+        .game-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .current-player {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .player-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        .player-indicator.white {
+            background: white;
+            border: 2px solid #333;
+        }
+
+        .player-indicator.black {
+            background: #333;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 0;
+            width: 600px;
+            height: 600px;
+            margin: 0 auto;
+            border: 3px solid #333;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .square {
+            width: 75px;
+            height: 75px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            position: relative;
+            transition: all 0.2s;
+        }
+
+        .square.light {
+            background: #f0d9b5;
+        }
+
+        .square.dark {
+            background: #b58863;
+        }
+
+        .square.selected {
+            background: #f6f669 !important;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .square.valid-move {
+            position: relative;
+        }
+
+        .square.valid-move::after {
+            content: '';
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background: rgba(0, 128, 0, 0.4);
+            border-radius: 50%;
+        }
+
+        .square.valid-move.has-piece::after {
+            width: 70px;
+            height: 70px;
+            background: transparent;
+            border: 4px solid rgba(255, 0, 0, 0.6);
+            border-radius: 50%;
+        }
+
+        .square.last-move {
+            background: #aaa23a !important;
+        }
+
+        .square:hover {
+            filter: brightness(1.1);
+        }
+
+        .piece {
+            font-size: 60px;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        .coordinate {
+            position: absolute;
+            font-size: 12px;
+            font-weight: bold;
+            color: inherit;
+        }
+
+        .row-coord {
+            top: 2px;
+            left: 2px;
+        }
+
+        .col-coord {
+            bottom: 2px;
+            right: 2px;
+        }
+
+        .message {
+            text-align: center;
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            font-weight: bold;
+            display: none;
+        }
+
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            display: block;
+        }
+
+        .message.error {
+            background: #f8d7da;
+            color: #721c24;
+            display: block;
+        }
+
+        @media (max-width: 700px) {
+            .board {
+                width: 400px;
+                height: 400px;
+            }
+
+            .square {
+                width: 50px;
+                height: 50px;
+            }
+
+            .piece {
+                font-size: 40px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>♟️ Chess Game ♟️</h1>
+        
+        <div class="game-info">
+            <div class="current-player">
+                Current Player: <span id="player-text">White</span>
+                <span class="player-indicator white" id="player-indicator"></span>
+            </div>
+            <button onclick="newGame()">New Game</button>
+        </div>
+
+        <div class="board" id="board"></div>
+
+        <div class="message" id="message"></div>
+    </div>
+
+    <script>
+        const pieceSymbols = {
+            'white': {
+                'pawn': '♙',
+                'knight': '♘',
+                'bishop': '♗',
+                'rook': '♖',
+                'queen': '♕',
+                'king': '♔'
+            },
+            'black': {
+                'pawn': '♟',
+                'knight': '♞',
+                'bishop': '♝',
+                'rook': '♜',
+                'queen': '♛',
+                'king': '♚'
+            }
+        };
+
+        let gameState = {
+            board: null,
+            nextPlayer: 'white',
+            selectedSquare: null,
+            validMoves: [],
+            lastMove: null
+        };
+
+        function showMessage(text, type = 'success') {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 3000);
+        }
+
+        async function newGame() {
+            try {
+                const response = await fetch('/new_game', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                gameState.board = data.board;
+                gameState.nextPlayer = data.next_player;
+                gameState.selectedSquare = null;
+                gameState.validMoves = [];
+                gameState.lastMove = null;
+                renderBoard();
+                updatePlayerDisplay();
+                showMessage('New game started!');
+            } catch (error) {
+                showMessage('Error starting new game', 'error');
+            }
+        }
+
+        async function selectSquare(row, col) {
+            const piece = gameState.board[row][col];
+            
+            // If clicking on a valid move square
+            if (gameState.selectedSquare && gameState.validMoves.some(m => m.row === row && m.col === col)) {
+                await makeMove(row, col);
+                return;
+            }
+
+            // If clicking on own piece
+            if (piece && piece.color === gameState.nextPlayer) {
+                try {
+                    const response = await fetch('/select_square', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ row, col })
+                    });
+                    const data = await response.json();
+                    gameState.selectedSquare = { row, col };
+                    gameState.validMoves = data.valid_moves;
+                    renderBoard();
+                } catch (error) {
+                    showMessage('Error selecting square', 'error');
+                }
+            } else {
+                gameState.selectedSquare = null;
+                gameState.validMoves = [];
+                renderBoard();
+            }
+        }
+
+        async function makeMove(row, col) {
+            try {
+                const response = await fetch('/make_move', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ row, col })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    gameState.board = data.board;
+                    gameState.nextPlayer = data.next_player;
+                    gameState.lastMove = {
+                        initial: gameState.selectedSquare,
+                        final: { row, col }
+                    };
+                    gameState.selectedSquare = null;
+                    gameState.validMoves = [];
+                    renderBoard();
+                    updatePlayerDisplay();
+                    
+                    if (data.captured) {
+                        showMessage('Piece captured!');
+                    }
+                } else {
+                    showMessage('Invalid move', 'error');
+                    gameState.selectedSquare = null;
+                    gameState.validMoves = [];
+                    renderBoard();
+                }
+            } catch (error) {
+                showMessage('Error making move', 'error');
+            }
+        }
+
+        function renderBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const square = document.createElement('div');
+                    square.className = 'square';
+                    square.className += (row + col) % 2 === 0 ? ' light' : ' dark';
+                    
+                    // Highlight selected square
+                    if (gameState.selectedSquare && 
+                        gameState.selectedSquare.row === row && 
+                        gameState.selectedSquare.col === col) {
+                        square.classList.add('selected');
+                    }
+                    
+                    // Highlight valid moves
+                    if (gameState.validMoves.some(m => m.row === row && m.col === col)) {
+                        square.classList.add('valid-move');
+                        if (gameState.board[row][col]) {
+                            square.classList.add('has-piece');
+                        }
+                    }
+                    
+                    // Highlight last move
+                    if (gameState.lastMove && 
+                        ((gameState.lastMove.initial.row === row && gameState.lastMove.initial.col === col) ||
+                         (gameState.lastMove.final.row === row && gameState.lastMove.final.col === col))) {
+                        square.classList.add('last-move');
+                    }
+                    
+                    // Add coordinates
+                    if (col === 0) {
+                        const rowCoord = document.createElement('span');
+                        rowCoord.className = 'coordinate row-coord';
+                        rowCoord.textContent = 8 - row;
+                        square.appendChild(rowCoord);
+                    }
+                    
+                    if (row === 7) {
+                        const colCoord = document.createElement('span');
+                        colCoord.className = 'coordinate col-coord';
+                        colCoord.textContent = String.fromCharCode(97 + col);
+                        square.appendChild(colCoord);
+                    }
+                    
+                    // Add piece if exists
+                    const piece = gameState.board[row][col];
+                    if (piece) {
+                        const pieceEl = document.createElement('span');
+                        pieceEl.className = 'piece';
+                        pieceEl.textContent = pieceSymbols[piece.color][piece.name];
+                        square.appendChild(pieceEl);
+                    }
+                    
+                    square.onclick = () => selectSquare(row, col);
+                    boardEl.appendChild(square);
+                }
+            }
+        }
+
+        function updatePlayerDisplay() {
+            const playerText = document.getElementById('player-text');
+            const playerIndicator = document.getElementById('player-indicator');
+            
+            playerText.textContent = gameState.nextPlayer.charAt(0).toUpperCase() + gameState.nextPlayer.slice(1);
+            playerIndicator.className = `player-indicator ${gameState.nextPlayer}`;
+        }
+
+        // Initialize game on page load
+        window.onload = () => {
+            newGame();
+        };
+    </script>
