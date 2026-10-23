@@ -1,0 +1,2 @@
+# Root app.py: local, two-player browser chess.
+Flask>=3,<4
